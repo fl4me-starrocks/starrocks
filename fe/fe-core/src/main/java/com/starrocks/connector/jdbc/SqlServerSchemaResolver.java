@@ -14,7 +14,6 @@
 
 package com.starrocks.connector.jdbc;
 
-import com.google.api.client.util.Lists;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.JDBCTable;
 import com.starrocks.catalog.PrimitiveType;
@@ -35,7 +34,6 @@ import static java.lang.Math.max;
 
 public class SqlServerSchemaResolver extends JDBCSchemaResolver {
 
-    // TABLE, VIEW, SYSTEM TABLE
     @Override
     public ResultSet getTables(Connection connection, String dbName) throws SQLException {
         return connection.getMetaData().getTables(connection.getCatalog(), dbName, null,
@@ -48,24 +46,10 @@ public class SqlServerSchemaResolver extends JDBCSchemaResolver {
     }
 
     @Override
-    public List<Column> convertToSRTable(ResultSet columnSet) throws SQLException {
-        List<Column> fullSchema = Lists.newArrayList();
-        while (columnSet.next()) {
-            Type type = convertColumnType(columnSet.getInt("DATA_TYPE"),
-                    columnSet.getString("TYPE_NAME"),
-                    columnSet.getInt("COLUMN_SIZE"),
-                    columnSet.getInt("DECIMAL_DIGITS"));
-            String columnName = columnSet.getString("COLUMN_NAME");
-            fullSchema.add(new Column(columnName, type, columnSet.getString("IS_NULLABLE").equals("YES")));
-        }
-        return fullSchema;
-    }
-
-    @Override
     public Table getTable(long id, String name, List<Column> schema, String dbName, String catalogName,
                           Map<String, String> properties) throws DdlException {
         Map<String, String> newProp = new HashMap<>(properties);
-        newProp.putIfAbsent(JDBCTable.JDBC_TABLENAME, "\"" + dbName + "\"" + "." + "\"" + name + "\"");
+        newProp.putIfAbsent(JDBCTable.JDBC_TABLENAME, "[" + dbName + "]" + "." + "[" + name + "]");
         return new JDBCTable(id, name, schema, dbName, catalogName, newProp);
     }
 
@@ -73,7 +57,7 @@ public class SqlServerSchemaResolver extends JDBCSchemaResolver {
     public Table getTable(long id, String name, List<Column> schema, List<Column> partitionColumns, String dbName,
                           String catalogName, Map<String, String> properties) throws DdlException {
         Map<String, String> newProp = new HashMap<>(properties);
-        newProp.putIfAbsent(JDBCTable.JDBC_TABLENAME, "\"" + dbName + "\"" + "." + "\"" + name + "\"");
+        newProp.putIfAbsent(JDBCTable.JDBC_TABLENAME, "[" + dbName + "]" + "." + "[" + name + "]");
         return new JDBCTable(id, name, schema, partitionColumns, dbName, catalogName, newProp);
     }
 
@@ -114,20 +98,21 @@ public class SqlServerSchemaResolver extends JDBCSchemaResolver {
             case Types.CHAR:
             case Types.NCHAR:
                 return ScalarType.createCharType(columnSize);
-            // DATETIMEOFFSET
-            case -155:
-                // SQL_VARIANT
-            case -150:
             case Types.VARCHAR:
             case Types.NVARCHAR:
+                if (columnSize > 0) {
+                    return ScalarType.createVarcharType(columnSize);
+                } else {
+                    return ScalarType.createVarcharType(ScalarType.getOlapMaxVarcharLength());
+                }
+            // DATETIMEOFFSET
+            case -155:
             case Types.LONGVARCHAR:
             case Types.LONGNVARCHAR:
-                if (typeName.equalsIgnoreCase("varchar") || typeName.equalsIgnoreCase("nvarchar")) {
-                    return ScalarType.createVarcharType(columnSize);
-                } else if (typeName.equalsIgnoreCase("text") || typeName.equalsIgnoreCase("ntext") ||
+                if (typeName.equalsIgnoreCase("text") || typeName.equalsIgnoreCase("ntext") ||
                         typeName.equalsIgnoreCase("xml")) {
                     return ScalarType.createVarcharType(ScalarType.getOlapMaxVarcharLength());
-                } else if (typeName.equalsIgnoreCase("datetimeoffset") || typeName.equalsIgnoreCase("sql_variant")) {
+                } else if (typeName.equalsIgnoreCase("datetimeoffset")) {
                     return ScalarType.createVarcharType(columnSize);
                 }
                 primitiveType = PrimitiveType.UNKNOWN_TYPE;
@@ -153,10 +138,7 @@ public class SqlServerSchemaResolver extends JDBCSchemaResolver {
             int precision = columnSize + max(-digits, 0);
             // if user not specify numeric precision and scale, the default value is 0,
             // we can't defer the precision and scale, can only deal it as string.
-            // Testing has found that in some cases where the field type is NUMBER.
-            // there may be situations where `columnSize` is zero but the `digits` is not zero.
-            // So I added a judgment of columnSize == 0
-            if (precision == 0 || columnSize == 0) {
+            if (precision == 0) {
                 return ScalarType.createVarcharType(ScalarType.CATALOG_MAX_VARCHAR_LENGTH);
             }
             return ScalarType.createUnifiedDecimalType(precision, max(digits, 0));

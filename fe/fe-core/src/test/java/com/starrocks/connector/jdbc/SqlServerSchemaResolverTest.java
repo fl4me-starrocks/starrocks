@@ -16,12 +16,10 @@ package com.starrocks.connector.jdbc;
 
 import com.google.common.collect.Lists;
 import com.mockrunner.mock.jdbc.MockResultSet;
-import com.starrocks.catalog.Column;
 import com.starrocks.catalog.Database;
 import com.starrocks.catalog.JDBCResource;
 import com.starrocks.catalog.JDBCTable;
 import com.starrocks.catalog.Table;
-import com.starrocks.common.DdlException;
 import com.zaxxer.hikari.HikariDataSource;
 import mockit.Expectations;
 import mockit.Mocked;
@@ -30,7 +28,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Arrays;
@@ -58,33 +55,37 @@ public class SqlServerSchemaResolverTest {
         tableResult = new MockResultSet("tables");
         tableResult.addColumn("TABLE_NAME", Arrays.asList("tbl1", "tbl2", "tbl3"));
         columnResult = new MockResultSet("columns");
-        columnResult.addColumn("DATA_TYPE", Arrays.asList(-150, -155, Types.BIGINT, Types.BIT, Types.CHAR, Types.CHAR,
-                Types.DATE,
-                Types.DECIMAL, Types.DECIMAL, Types.DECIMAL, Types.DOUBLE, Types.INTEGER, Types.INTEGER,
-                Types.LONGNVARCHAR, Types.LONGNVARCHAR,
-                Types.LONGVARCHAR, Types.NCHAR,
-                Types.NUMERIC, Types.NVARCHAR, Types.REAL, Types.SMALLINT, Types.TIME, Types.TIMESTAMP, Types.TIMESTAMP,
-                Types.TIMESTAMP,
-                Types.TINYINT, Types.VARCHAR));
-        columnResult.addColumn("TYPE_NAME", Arrays.asList("sql_variant", "datetimeoffset", "bigint", "bit", "char",
-                "uniqueidentifier", "date", "decimal", "smallmoney", "money", "float", "int identity", "int", "ntext",
-                "xml",
-                "text", "nchar", "numerics", "nvarchar", "real", "smallint", "time", "datetime2", "smalldatetime",
-                "datetime",
-                "tinyint", "varchar"));
+        columnResult.addColumn("DATA_TYPE",
+                Arrays.asList(-155, Types.BIGINT, Types.BIT, Types.CHAR, Types.CHAR, Types.DATE, Types.DECIMAL,
+                        Types.DECIMAL, Types.DECIMAL, Types.DOUBLE, Types.INTEGER, Types.INTEGER, Types.LONGNVARCHAR,
+                        Types.LONGNVARCHAR,
+                        Types.LONGVARCHAR, Types.NCHAR, Types.NUMERIC, Types.NVARCHAR, Types.REAL, Types.SMALLINT,
+                        Types.TIME, Types.TIMESTAMP, Types.TIMESTAMP, Types.TIMESTAMP, Types.TINYINT, Types.VARCHAR));
+        columnResult.addColumn("TYPE_NAME",
+                Arrays.asList("datetimeoffset", "bigint", "bit", "char", "uniqueidentifier", "date", "decimal",
+                        "smallmoney", "money", "float", "int identity", "int", "ntext", "xml",
+                        "text", "nchar", "numerics", "nvarchar", "real", "smallint",
+                        "time", "datetime2", "smalldatetime", "datetime", "tinyint", "varchar"));
         columnResult.addColumn("COLUMN_SIZE",
-                Arrays.asList(2147483647, 34, 19, 1, 10, 36, 10, 18, 10, 19, 53, 10, 10, 1073741823, 2147483647, 2147483647,
-                        10, 18, 50, 24, 5, 16, 27, 16, 23, 3, 50));
+                Arrays.asList(34, 19, 1, 10, 36, 10, 18,
+                        10, 19, 53, 10, 10, 1073741823, 2147483647,
+                        2147483647, 10, 18, 50, 24, 5,
+                        16, 27, 16, 23, 3, 50));
         columnResult.addColumn("DECIMAL_DIGITS",
-                Arrays.asList(0, 7, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0, 0,
-                        0, 0, 0, 0, 0, 0, 7, 7, 0, 3, 0, 0));
+                Arrays.asList(7, 0, 0, 0, 0, 0, 4,
+                        4, 4, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0,
+                        7, 7, 0, 3, 0, 0));
         columnResult.addColumn("COLUMN_NAME",
-                Arrays.asList("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o",
-                        "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "aa"));
+                Arrays.asList("a", "b", "c", "d", "e", "f", "g",
+                        "h", "i", "j", "k", "l", "m", "n",
+                        "o", "p", "q", "r", "s", "t",
+                        "u", "v", "w", "x", "y", "z"));
         columnResult.addColumn("IS_NULLABLE",
-                Arrays.asList("YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "NO", "YES", "YES", "YES", "YES",
-                        "YES", "YES",
-                        "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES"));
+                Arrays.asList("YES", "YES", "YES", "YES", "YES", "YES", "YES",
+                        "YES", "YES", "YES", "NO", "YES", "YES", "YES",
+                        "YES", "YES", "YES", "YES", "YES", "YES",
+                        "YES", "YES", "YES", "YES", "YES", "YES"));
         properties = new HashMap<>();
         properties.put(JDBCResource.DRIVER_CLASS, "com.microsoft.sqlserver.jdbc.SQLServerDriver");
         properties.put(JDBCResource.URI, "jdbc:sqlserver://127.0.0.1:1433;databaseName=MyDatabase;");
@@ -191,13 +192,34 @@ public class SqlServerSchemaResolverTest {
             Assert.assertEquals("catalog.test.tbl1", table.getUUID());
             Assert.assertEquals("tbl1", table.getName());
             Assert.assertNull(properties.get(JDBCTable.JDBC_TABLENAME));
-            SqlServerSchemaResolver sqlServerSchemaResolver = new SqlServerSchemaResolver();
-            ResultSet columnSet = sqlServerSchemaResolver.getColumns(connection, "test", "tbl1");
-            List<Column> fullSchema = sqlServerSchemaResolver.convertToSRTable(columnSet);
-            Table table1 = sqlServerSchemaResolver.getTable(1, "tbl1", fullSchema, "test", "catalog", properties);
-            Assert.assertTrue(table1 instanceof JDBCTable);
-            Assert.assertNull(properties.get(JDBCTable.JDBC_TABLENAME));
-        } catch (DdlException e) {
+            Assert.assertTrue(table.getColumn("a").getType().isVarchar());
+            Assert.assertTrue(table.getColumn("b").getType().isBigint());
+            Assert.assertTrue(table.getColumn("c").getType().isBoolean());
+            Assert.assertTrue(table.getColumn("d").getType().isChar());
+            Assert.assertTrue(table.getColumn("e").getType().isChar());
+            Assert.assertTrue(table.getColumn("f").getType().isDate());
+            Assert.assertTrue(table.getColumn("g").getType().isDecimalV3());
+            Assert.assertTrue(table.getColumn("h").getType().isDecimalV3());
+            Assert.assertTrue(table.getColumn("i").getType().isDecimalV3());
+            Assert.assertTrue(table.getColumn("j").getType().isDouble());
+            Assert.assertTrue(table.getColumn("k").getType().isInt());
+            Assert.assertTrue(table.getColumn("l").getType().isInt());
+            Assert.assertTrue(table.getColumn("m").getType().isVarchar());
+            Assert.assertTrue(table.getColumn("n").getType().isVarchar());
+            Assert.assertTrue(table.getColumn("o").getType().isVarchar());
+            Assert.assertTrue(table.getColumn("p").getType().isChar());
+            Assert.assertTrue(table.getColumn("q").getType().isDecimalV3());
+            Assert.assertTrue(table.getColumn("r").getType().isVarchar());
+            Assert.assertTrue(table.getColumn("s").getType().isFloat());
+            Assert.assertTrue(table.getColumn("t").getType().isSmallint());
+            Assert.assertTrue(table.getColumn("u").getType().isTime());
+            Assert.assertTrue(table.getColumn("v").getType().isDatetime());
+            Assert.assertTrue(table.getColumn("w").getType().isDatetime());
+            Assert.assertTrue(table.getColumn("x").getType().isDatetime());
+            Assert.assertTrue(table.getColumn("y").getType().isSmallint());
+            Assert.assertTrue(table.getColumn("z").getType().isVarchar());
+
+        } catch (Exception e) {
             System.out.println(e.getMessage());
             Assert.fail();
         }
