@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
 
-package com.starrocks.connector.hive.glue.metastore;
+#include <string>
 
-import com.amazonaws.auth.AWSCredentialsProvider;
-import org.apache.hadoop.hive.conf.HiveConf;
+#include "column/column.h"
+#include "common/status.h"
+#include "runtime/types.h"
+#include "simdjson.h"
 
-public interface AWSCredentialsProviderFactory {
-
-    AWSCredentialsProvider buildAWSCredentialsProvider(HiveConf hiveConf);
-}
+namespace starrocks {
+Status add_struct_column(Column* column, const TypeDescriptor& type_desc, const std::string& name,
+                         simdjson::ondemand::value* value);
+} // namespace starrocks
