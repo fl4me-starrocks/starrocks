@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
 #include "types/checker/type_checker.h"
 #include <memory>
 #include <unordered_map>
@@ -21,7 +22,8 @@ namespace starrocks {
 
 class TypeCheckerManager {
 private:
-    std::unordered_map<std::string, std::unique_ptr<TypeChecker>> checkers;
+    std::unordered_map<std::string, std::unique_ptr<TypeChecker>> _checkers;
+    std::unique_ptr<TypeChecker> _default_checker;
     TypeCheckerManager();
 
 public:

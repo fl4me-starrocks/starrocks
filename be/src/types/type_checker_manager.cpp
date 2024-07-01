@@ -19,8 +19,32 @@
 namespace starrocks {
 
 TypeCheckerManager::TypeCheckerManager() {
+    default_checker = std::make_unique<DefaultTypeChecker>();
+    registerChecker("java.lang.Byte", std::make_unique<ByteTypeChecker>());
+    registerChecker("com.clickhouse.data.value.UnsignedByte", std::make_unique<ClickHouseUnsignedByteTypeChecker>());
+    registerChecker("java.lang.Short", std::make_unique<ShortTypeChecker>());
+    registerChecker("com.clickhouse.data.value.UnsignedShort", std::make_unique<ClickHouseUnsignedShortTypeChecker>());
+    registerChecker("java.lang.Integer", std::make_unique<IntegerTypeChecker>());
+    registerChecker("java.lang.String", std::make_unique<StringTypeChecker>());
+    registerChecker("com.clickhouse.data.value.UnsignedInteger", std::make_unique<ClickHouseUnsignedIntegerTypeChecker>());
+    registerChecker("java.lang.Long", std::make_unique<LongTypeChecker>());
+    registerChecker("java.math.BigInteger", std::make_unique<BigIntegerTypeChecker>());
+    registerChecker("com.clickhouse.data.value.UnsignedLong", std::make_unique<ClickHouseUnsignedLongTypeChecker>());
     registerChecker("java.lang.Boolean", std::make_unique<BooleanTypeChecker>());
-    // todo: 注册其他类型检查器
+    registerChecker("java.lang.Float", std::make_unique<FloatTypeChecker>());
+    registerChecker("java.lang.Double", std::make_unique<DoubleTypeChecker>());
+    registerChecker("java.sql.Timestamp", std::make_unique<TimestampTypeChecker>());
+    registerChecker("java.sql.Date", std::make_unique<DateTypeChecker>());
+    registerChecker("java.sql.Time", std::make_unique<TimeTypeChecker>());
+    registerChecker("java.time.LocalDateTime", std::make_unique<LocalDateTimeTypeChecker>());
+    registerChecker("java.math.BigDecimal", std::make_unique<BigDecimalTypeChecker>());
+    registerChecker("oracle.sql.TIMESTAMP", std::make_unique<OracleTimestampClassTypeChecker>());
+    registerChecker("oracle.sql.TIMESTAMPLTZ", std::make_unique<OracleTimestampClassTypeChecker>());
+    registerChecker("oracle.sql.TIMESTAMPTZ", std::make_unique<OracleTimestampClassTypeChecker>());
+    registerChecker("microsoft.sql.DateTimeOffset", std::make_unique<SqlServerDateTimeOffsetTypeChecker>());
+    registerChecker("byte[]", std::make_unique<ByteArrayTypeChecker>());
+    registerChecker("oracle.jdbc.OracleBlob", std::make_unique<ByteArrayTypeChecker>());
+    registerChecker("[B", std::make_unique<ByteArrayTypeChecker>());
 }
 
 TypeCheckerManager& TypeCheckerManager::getInstance() {
@@ -29,18 +53,16 @@ TypeCheckerManager& TypeCheckerManager::getInstance() {
 }
 
 void TypeCheckerManager::registerChecker(const std::string& java_class, std::unique_ptr<TypeChecker> checker) {
-    checkers[java_class] = std::move(checker);
+    _checkers[java_class] = std::move(checker);
 }
 
 StatusOr<LogicalType> TypeCheckerManager::checkType(const std::string& java_class, const SlotDescriptor* slot_desc) {
-    auto it = checkers.find(java_class);
-    if (it != checkers.end()) {
-        return it->second->check(java_class, slot_desc);
+    auto type = slot_desc->type().type;
+    auto it = _checkers.find(java_class);
+    if (it != _checkers.end()) {
+        return it->second->check(java_class, type);
     }
-    return Status::NotSupported(
-            fmt::format("JDBC result type of column[{}] is [{}], StarRocks does not recognize it, please set "
-                        "the type of this column to varchar to avoid information loss.",
-                        slot_desc->col_name(), java_class));
+    return _default_checker->check(java_class, type);
 }
 
 } // namespace starrocks
