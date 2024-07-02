@@ -56,12 +56,11 @@ void TypeCheckerManager::registerChecker(const std::string& java_class, std::uni
 }
 
 StatusOr<LogicalType> TypeCheckerManager::checkType(const std::string& java_class, const SlotDescriptor* slot_desc) {
-    auto type = slot_desc->type().type;
     auto it = _checkers.find(java_class);
     if (it != _checkers.end()) {
-        return it->second->check(java_class, type);
+        return it->second->check(java_class, slot_desc);
     }
-    return _default_checker->check(java_class, type);
+    return _default_checker->check(java_class, slot_desc);
 }
 
 } // namespace starrocks

@@ -13,11 +13,12 @@
 // limitations under the License.
 
 #pragma once
-#include "types/logical_type.h"
-#include "runtime/descriptors.h"
+#include <string>
+
 #include "common/status.h"
 #include "common/statusor.h"
-#include <string>
+#include "runtime/descriptors.h"
+#include "types/logical_type.h"
 
 namespace starrocks {
 class TypeChecker {
@@ -25,4 +26,97 @@ public:
     virtual ~TypeChecker() = default;
     virtual StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const = 0;
 };
-}
+
+class ByteTypeChecker : public TypeChecker {
+public:
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class ClickHouseUnsignedByteTypeChecker : public TypeChecker {
+public:
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class ShortTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class ClickHouseUnsignedShortTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class IntegerTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+// java.lang.String
+class StringTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class ClickHouseUnsignedIntegerTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class LongTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class BigIntegerTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class ClickHouseUnsignedLongTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class BooleanTypeChecker : public TypeChecker {
+public:
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class FloatTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class DoubleTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class TimestampTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class DateTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class TimeTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class LocalDateTimeTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class BigDecimalTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class OracleTimestampClassTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class SqlServerDateTimeOffsetTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class ByteArrayTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+class DefaultTypeChecker : public TypeChecker {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override;
+};
+
+} // namespace starrocks
