@@ -14,7 +14,6 @@
 
 
 #include "types/type_checker_manager.h"
-#include <fmt/format.h>
 
 namespace starrocks {
 

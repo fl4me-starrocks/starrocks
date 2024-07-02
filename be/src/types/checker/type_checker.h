@@ -16,6 +16,7 @@
 #include "types/logical_type.h"
 #include "runtime/descriptors.h"
 #include "common/status.h"
+#include "common/statusor.h"
 #include <string>
 
 namespace starrocks {

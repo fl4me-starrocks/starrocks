@@ -13,11 +13,12 @@
 // limitations under the License.
 
 #include "types/checker/type_checker.h"
+#include <fmt/format.h>
 
 namespace starrocks {
 // java.lang.Byte
 class ByteTypeChecker : public TypeChecker {
-    StatusOr<LogicalType> check(const std::String& java_class, const SlotDescriptor* slot_desc) const override {
+    StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override {
         auto type = slot_desc->type().type;
         if (type != TYPE_BOOLEAN && type != TYPE_TINYINT && type != TYPE_SMALLINT && type != TYPE_INT &&
             type != TYPE_BIGINT) {
