@@ -28,7 +28,7 @@
 #include "types/logical_type.h"
 #include "udf/java/java_udf.h"
 #include "util/defer_op.h"
-#include "types/type_checker_namager.h"
+#include "types/type_checker_manager.h"
 
 namespace starrocks {
 
