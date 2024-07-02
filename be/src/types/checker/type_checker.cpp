@@ -106,7 +106,7 @@ StatusOr<LogicalType> StringTypeChecker::check(const std::string& java_class,
 
 // com.clickhouse.data.value.UnsignedInteger
 
-StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const {
+StatusOr<LogicalType> ClickHouseUnsignedIntegerTypeChecker::check(const std::string& java_class, const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_BIGINT) {
         return Status::NotSupported(fmt::format(
