@@ -18,7 +18,7 @@
 namespace starrocks {
 
 TypeCheckerManager::TypeCheckerManager() {
-    default_checker = std::make_unique<DefaultTypeChecker>();
+    _default_checker = std::make_unique<DefaultTypeChecker>();
     registerChecker("java.lang.Byte", std::make_unique<ByteTypeChecker>());
     registerChecker("com.clickhouse.data.value.UnsignedByte", std::make_unique<ClickHouseUnsignedByteTypeChecker>());
     registerChecker("java.lang.Short", std::make_unique<ShortTypeChecker>());

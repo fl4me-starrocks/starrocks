@@ -20,14 +20,14 @@ namespace starrocks {
 // java.lang.Byte
 
 StatusOr<LogicalType> ByteTypeChecker::check(const std::string& java_class,
-                                             const SlotDescriptor* slot_desc) const override {
+                                             const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_BOOLEAN && type != TYPE_TINYINT && type != TYPE_SMALLINT && type != TYPE_INT &&
         type != TYPE_BIGINT) {
         return Status::NotSupported(
                 fmt::format("Type mismatches on column[{}], JDBC result type is Byte, please set the type to "
                             "one of boolean,tinyint,smallint,int,bigint",
-                            slot_desc->col_name());)
+                            slot_desc->col_name()))
     }
     if (type == TYPE_BOOLEAN) {
         return TYPE_BOOLEAN;
@@ -38,7 +38,7 @@ StatusOr<LogicalType> ByteTypeChecker::check(const std::string& java_class,
 // com.clickhouse.data.value.UnsignedByte
 
 StatusOr<LogicalType> ClickHouseUnsignedByteTypeChecker::check(const std::string& java_class,
-                                                               const SlotDescriptor* slot_desc) const override {
+                                                               const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_SMALLINT && type != TYPE_INT && type != TYPE_BIGINT) {
         return Status::NotSupported(
@@ -52,7 +52,7 @@ StatusOr<LogicalType> ClickHouseUnsignedByteTypeChecker::check(const std::string
 // java.lang.Short
 
 StatusOr<LogicalType> ShortTypeChecker::check(const std::string& java_class,
-                                              const SlotDescriptor* slot_desc) const override {
+                                              const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_TINYINT && type != TYPE_SMALLINT && type != TYPE_INT && type != TYPE_BIGINT) {
         return Status::NotSupported(
@@ -66,7 +66,7 @@ StatusOr<LogicalType> ShortTypeChecker::check(const std::string& java_class,
 // com.clickhouse.data.value.UnsignedShort
 
 StatusOr<LogicalType> ClickHouseUnsignedShortTypeChecker::check(const std::string& java_class,
-                                                                const SlotDescriptor* slot_desc) const override {
+                                                                const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_INT && type != TYPE_BIGINT) {
         return Status::NotSupported(
@@ -80,7 +80,7 @@ StatusOr<LogicalType> ClickHouseUnsignedShortTypeChecker::check(const std::strin
 // java.lang.Integer
 
 StatusOr<LogicalType> IntegerTypeChecker::check(const std::string& java_class,
-                                                const SlotDescriptor* slot_desc) const override {
+                                                const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_TINYINT && type != TYPE_SMALLINT && type != TYPE_INT && type != TYPE_BIGINT) {
         return Status::NotSupported(
@@ -94,7 +94,7 @@ StatusOr<LogicalType> IntegerTypeChecker::check(const std::string& java_class,
 // java.lang.String
 
 StatusOr<LogicalType> StringTypeChecker::check(const std::string& java_class,
-                                               const SlotDescriptor* slot_desc) const override {
+                                               const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_CHAR && type != TYPE_VARCHAR) {
         return Status::NotSupported(fmt::format(
@@ -106,7 +106,7 @@ StatusOr<LogicalType> StringTypeChecker::check(const std::string& java_class,
 
 // com.clickhouse.data.value.UnsignedInteger
 
-StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const override {
+StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_BIGINT) {
         return Status::NotSupported(fmt::format(
@@ -119,7 +119,7 @@ StatusOr<LogicalType> check(const std::string& java_class, const SlotDescriptor*
 // java.lang.Long
 
 StatusOr<LogicalType> LongTypeChecker::check(const std::string& java_class,
-                                             const SlotDescriptor* slot_desc) const override {
+                                             const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_BIGINT) {
         return Status::NotSupported(
@@ -132,7 +132,7 @@ StatusOr<LogicalType> LongTypeChecker::check(const std::string& java_class,
 // java.math.BigInteger
 
 StatusOr<LogicalType> BigIntegerTypeChecker::check(const std::string& java_class,
-                                                   const SlotDescriptor* slot_desc) const override {
+                                                   const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_LARGEINT && type != TYPE_VARCHAR) {
         return Status::NotSupported(fmt::format(
@@ -145,7 +145,7 @@ StatusOr<LogicalType> BigIntegerTypeChecker::check(const std::string& java_class
 // com.clickhouse.data.value.UnsignedLong
 
 StatusOr<LogicalType> ClickHouseUnsignedLongTypeChecker::check(const std::string& java_class,
-                                                               const SlotDescriptor* slot_desc) const override {
+                                                               const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_LARGEINT) {
         return Status::NotSupported(fmt::format(
@@ -158,7 +158,7 @@ StatusOr<LogicalType> ClickHouseUnsignedLongTypeChecker::check(const std::string
 // java.lang.Boolean
 
 StatusOr<LogicalType> BooleanTypeChecker::check(const std::string& java_class,
-                                                const SlotDescriptor* slot_desc) const override {
+                                                const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_BOOLEAN && type != TYPE_SMALLINT && type != TYPE_INT && type != TYPE_BIGINT) {
         return Status::NotSupported(
@@ -172,7 +172,7 @@ StatusOr<LogicalType> BooleanTypeChecker::check(const std::string& java_class,
 // java.lang.Float
 
 StatusOr<LogicalType> FloatTypeChecker::check(const std::string& java_class,
-                                              const SlotDescriptor* slot_desc) const override {
+                                              const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_FLOAT) {
         return Status::NotSupported(
@@ -185,7 +185,7 @@ StatusOr<LogicalType> FloatTypeChecker::check(const std::string& java_class,
 // java.lang.Double
 
 StatusOr<LogicalType> DoubleTypeChecker::check(const std::string& java_class,
-                                               const SlotDescriptor* slot_desc) const override {
+                                               const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_DOUBLE && type != TYPE_FLOAT) {
         return Status::NotSupported(fmt::format(
@@ -198,7 +198,7 @@ StatusOr<LogicalType> DoubleTypeChecker::check(const std::string& java_class,
 //  java.sql.Timestamp
 
 StatusOr<LogicalType> TimestampTypeChecker::check(const std::string& java_class,
-                                                  const SlotDescriptor* slot_desc) const override {
+                                                  const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_DATETIME && type != TYPE_VARCHAR) {
         return Status::NotSupported(fmt::format(
@@ -211,7 +211,7 @@ StatusOr<LogicalType> TimestampTypeChecker::check(const std::string& java_class,
 // java.sql.Date
 
 StatusOr<LogicalType> DateTypeChecker::check(const std::string& java_class,
-                                             const SlotDescriptor* slot_desc) const override {
+                                             const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_DATE) {
         return Status::NotSupported(
@@ -224,7 +224,7 @@ StatusOr<LogicalType> DateTypeChecker::check(const std::string& java_class,
 // java.sql.Time
 
 StatusOr<LogicalType> TimeTypeChecker::check(const std::string& java_class,
-                                             const SlotDescriptor* slot_desc) const override {
+                                             const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_TIME) {
         return Status::NotSupported(
@@ -237,7 +237,7 @@ StatusOr<LogicalType> TimeTypeChecker::check(const std::string& java_class,
 // java.time.LocalDateTime
 
 StatusOr<LogicalType> LocalDateTimeTypeChecker::check(const std::string& java_class,
-                                                      const SlotDescriptor* slot_desc) const override {
+                                                      const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_DATETIME) {
         return Status::NotSupported(fmt::format(
@@ -250,7 +250,7 @@ StatusOr<LogicalType> LocalDateTimeTypeChecker::check(const std::string& java_cl
 // java.math.BigDecimal
 
 StatusOr<LogicalType> BigDecimalTypeChecker::check(const std::string& java_class,
-                                                   const SlotDescriptor* slot_desc) const override {
+                                                   const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_DECIMAL32 && type != TYPE_DECIMAL64 && type != TYPE_DECIMAL128 && type != TYPE_VARCHAR &&
         type != TYPE_DOUBLE) {
@@ -265,7 +265,7 @@ StatusOr<LogicalType> BigDecimalTypeChecker::check(const std::string& java_class
 // oracle.sql.TIMESTAMP  oracle.sql.TIMESTAMPLTZ oracle.sql.TIMESTAMPTZ
 
 StatusOr<LogicalType> OracleTimestampClassTypeChecker::check(const std::string& java_class,
-                                                             const SlotDescriptor* slot_desc) const override {
+                                                             const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_VARCHAR) {
         return Status::NotSupported(
@@ -279,7 +279,7 @@ StatusOr<LogicalType> OracleTimestampClassTypeChecker::check(const std::string& 
 // microsoft.sql.DateTimeOffset
 
 StatusOr<LogicalType> SqlServerDateTimeOffsetTypeChecker::check(const std::string& java_class,
-                                                                const SlotDescriptor* slot_desc) const override {
+                                                                const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_VARCHAR) {
         return Status::NotSupported(
@@ -293,7 +293,7 @@ StatusOr<LogicalType> SqlServerDateTimeOffsetTypeChecker::check(const std::strin
 // byte[] oracle.jdbc.OracleBlob [B
 
 StatusOr<LogicalType> ByteArrayTypeChecker::check(const std::string& java_class,
-                                                  const SlotDescriptor* slot_desc) const override {
+                                                  const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_BINARY && type != TYPE_VARBINARY) {
         return Status::NotSupported(
@@ -305,7 +305,7 @@ StatusOr<LogicalType> ByteArrayTypeChecker::check(const std::string& java_class,
 }
 
 StatusOr<LogicalType> DefaultTypeChecker::check(const std::string& java_class,
-                                                const SlotDescriptor* slot_desc) const override {
+                                                const SlotDescriptor* slot_desc) const {
     auto type = slot_desc->type().type;
     if (type != TYPE_VARCHAR) {
         return Status::NotSupported(
