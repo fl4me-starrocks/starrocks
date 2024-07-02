@@ -27,7 +27,7 @@ StatusOr<LogicalType> ByteTypeChecker::check(const std::string& java_class,
         return Status::NotSupported(
                 fmt::format("Type mismatches on column[{}], JDBC result type is Byte, please set the type to "
                             "one of boolean,tinyint,smallint,int,bigint",
-                            slot_desc->col_name()))
+                            slot_desc->col_name()));
     }
     if (type == TYPE_BOOLEAN) {
         return TYPE_BOOLEAN;
@@ -164,7 +164,7 @@ StatusOr<LogicalType> BooleanTypeChecker::check(const std::string& java_class,
         return Status::NotSupported(
                 fmt::format("Type mismatches on column[{}], JDBC result type is Boolean, please set the type to "
                             "one of boolean,smallint,int,bigint",
-                            slot_desc->col_name());)
+                            slot_desc->col_name()));
     }
     return TYPE_BOOLEAN;
 }
