@@ -27,6 +27,7 @@ import com.starrocks.sql.optimizer.operator.logical.LogicalAggregationOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalCTEAnchorOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalCTEConsumeOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalExceptOperator;
+import com.starrocks.sql.optimizer.operator.logical.LogicalExternalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalIntersectOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalJDBCScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalJoinOperator;
@@ -187,6 +188,17 @@ public class LogicalProperty implements Property {
                     return OneTabletProperty.supportWithoutChangeDistribution(new ColumnRefSet(bucketColumns));
                 }
                 return OneTabletProperty.notSupport();
+            } if (node instanceof LogicalExternalOlapScanOperator) {
+                if(((LogicalExternalOlapScanOperator)node).getSelectedTabletId().size() <= 1) {
+                    Set<String> distributionColumnNames = node.getTable().getDistributionColumnNames();
+                    List<ColumnRefOperator> bucketColumns = Lists.newArrayList();
+                    for (Map.Entry<ColumnRefOperator, Column> entry : node.getColRefToColumnMetaMap().entrySet()) {
+                        if (distributionColumnNames.contains(entry.getValue().getName())) {
+                            bucketColumns.add(entry.getKey());
+                        }
+                    }
+                    return OneTabletProperty.supportWithoutChangeDistribution(new ColumnRefSet(bucketColumns));
+                }
             } else if (node instanceof LogicalMysqlScanOperator || node instanceof LogicalJDBCScanOperator) {
                 return OneTabletProperty.supportWithoutChangeDistribution(new ColumnRefSet());
             }

@@ -26,6 +26,7 @@ import com.starrocks.sql.optimizer.rule.implementation.CTEProduceImplementationR
 import com.starrocks.sql.optimizer.rule.implementation.DeltaLakeScanImplementationRule;
 import com.starrocks.sql.optimizer.rule.implementation.EsScanImplementationRule;
 import com.starrocks.sql.optimizer.rule.implementation.ExceptImplementationRule;
+import com.starrocks.sql.optimizer.rule.implementation.ExternalOlapScanImplementationRule;
 import com.starrocks.sql.optimizer.rule.implementation.FileScanImplementationRule;
 import com.starrocks.sql.optimizer.rule.implementation.FilterImplementationRule;
 import com.starrocks.sql.optimizer.rule.implementation.HashAggImplementationRule;
@@ -65,6 +66,8 @@ import com.starrocks.sql.optimizer.rule.transformation.EliminateGroupByConstantR
 import com.starrocks.sql.optimizer.rule.transformation.EliminateLimitZeroRule;
 import com.starrocks.sql.optimizer.rule.transformation.ExistentialApply2JoinRule;
 import com.starrocks.sql.optimizer.rule.transformation.ExistentialApply2OuterJoinRule;
+import com.starrocks.sql.optimizer.rule.transformation.ExternalOlapDistributionPruneRule;
+import com.starrocks.sql.optimizer.rule.transformation.ExternalOlapPartitionPruneRule;
 import com.starrocks.sql.optimizer.rule.transformation.ExternalScanPartitionPruneRule;
 import com.starrocks.sql.optimizer.rule.transformation.FineGrainedRangePredicateRule;
 import com.starrocks.sql.optimizer.rule.transformation.GroupByCountDistinctDataSkewEliminateRule;
@@ -172,6 +175,7 @@ public class RuleSet {
     private static final Map<RuleSetType, List<Rule>> REWRITE_RULES = Maps.newHashMap();
 
     private static final List<Rule> ALL_IMPLEMENT_RULES = ImmutableList.of(
+            new ExternalOlapScanImplementationRule(),
             new OlapScanImplementationRule(),
             new HiveScanImplementationRule(),
             new FileScanImplementationRule(),
@@ -256,7 +260,9 @@ public class RuleSet {
 
         REWRITE_RULES.put(RuleSetType.PARTITION_PRUNE, ImmutableList.of(
                 new PartitionPruneRule(),
+                new ExternalOlapPartitionPruneRule(),
                 new DistributionPruneRule(),
+                new ExternalOlapDistributionPruneRule(),
                 ExternalScanPartitionPruneRule.HIVE_SCAN,
                 ExternalScanPartitionPruneRule.HUDI_SCAN,
                 ExternalScanPartitionPruneRule.ICEBERG_SCAN,

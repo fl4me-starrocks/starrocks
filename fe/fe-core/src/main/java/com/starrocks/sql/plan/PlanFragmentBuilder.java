@@ -39,6 +39,7 @@ import com.starrocks.catalog.AggregateFunction;
 import com.starrocks.catalog.ColocateTableIndex;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.ColumnAccessPath;
+import com.starrocks.catalog.ExternalOlapTable;
 import com.starrocks.catalog.Function;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.JDBCTable;
@@ -79,6 +80,7 @@ import com.starrocks.planner.ExceptNode;
 import com.starrocks.planner.ExchangeNode;
 import com.starrocks.planner.ExecGroup;
 import com.starrocks.planner.ExecGroupSets;
+import com.starrocks.planner.ExternalOlapScanNode;
 import com.starrocks.planner.FileScanNode;
 import com.starrocks.planner.FileTableScanNode;
 import com.starrocks.planner.FragmentNormalizer;
@@ -154,6 +156,7 @@ import com.starrocks.sql.optimizer.operator.physical.PhysicalDecodeOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalDeltaLakeScanOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalDistributionOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalEsScanOperator;
+import com.starrocks.sql.optimizer.operator.physical.PhysicalExternalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalFileScanOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalFilterOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalHashAggregateOperator;
@@ -493,6 +496,83 @@ public class PlanFragmentBuilder {
          * used in the stage after scan.
          */
         private void setUnUsedOutputColumns(PhysicalOlapScanOperator node, OlapScanNode scanNode,
+                                            List<ScalarOperator> predicates, OlapTable referenceTable) {
+            SessionVariable sessionVariable = ConnectContext.get().getSessionVariable();
+            if (!sessionVariable.isEnableFilterUnusedColumnsInScanStage()) {
+                return;
+            }
+
+            // Key columns and value columns cannot be pruned in the non-skip-aggr scan stage.
+            // - All the keys columns must be retained to merge and aggregate rows.
+            // - Value columns can only be used after merging and aggregating.
+            MaterializedIndexMeta materializedIndexMeta = referenceTable.getIndexMetaByIndexId(node.getSelectedIndexId());
+            if (materializedIndexMeta.getKeysType().isAggregationFamily() && !node.isPreAggregation()) {
+                return;
+            }
+
+            // ------------------------------------------------------------------------------------
+            // Get outputColumnIds.
+            // ------------------------------------------------------------------------------------
+            Set<Integer> outputColumnIds = node.getOutputColumns().stream()
+                    .map(ColumnRefOperator::getId)
+                    .collect(Collectors.toSet());
+            // Empty outputColumnIds means that the expression after ScanNode does not need any column from ScanNode.
+            // However, at least one column needs to be output, so choose any column as the output column.
+            if (outputColumnIds.isEmpty()) {
+                if (!scanNode.getSlots().isEmpty()) {
+                    outputColumnIds.add(scanNode.getSlots().get(0).getId().asInt());
+                }
+            }
+
+            // ------------------------------------------------------------------------------------
+            // Get nonPushdownColumnIds.
+            // ------------------------------------------------------------------------------------
+            Set<Integer> nonPushdownColumnIds = Collections.emptySet();
+            if (materializedIndexMeta.getKeysType().isAggregationFamily() ||
+                    materializedIndexMeta.getKeysType() == KeysType.PRIMARY_KEYS) {
+                Map<String, Integer> columnNameToId = scanNode.getSlots().stream().collect(Collectors.toMap(
+                        slot -> slot.getColumn().getName(),
+                        slot -> slot.getId().asInt()
+                ));
+                nonPushdownColumnIds = materializedIndexMeta.getSchema().stream()
+                        .filter(col -> !col.isKey())
+                        .map(Column::getName)
+                        .map(columnNameToId::get)
+                        .collect(Collectors.toSet());
+            }
+
+            // ------------------------------------------------------------------------------------
+            // Get pushdownPredUsedColumnIds and nonPushdownPredUsedColumnIds.
+            // ------------------------------------------------------------------------------------
+            Set<Integer> pushdownPredUsedColumnIds = new HashSet<>();
+            Set<Integer> nonPushdownPredUsedColumnIds = new HashSet<>();
+            for (ScalarOperator predicate : predicates) {
+                ColumnRefSet usedColumns = predicate.getUsedColumns();
+                boolean isPushdown =
+                        DecodeVisitor.isSimpleStrictPredicate(predicate, sessionVariable.isEnablePushdownOrPredicate())
+                                && Arrays.stream(usedColumns.getColumnIds()).noneMatch(nonPushdownColumnIds::contains);
+                if (isPushdown) {
+                    for (int cid : usedColumns.getColumnIds()) {
+                        pushdownPredUsedColumnIds.add(cid);
+                    }
+                } else {
+                    for (int cid : usedColumns.getColumnIds()) {
+                        nonPushdownPredUsedColumnIds.add(cid);
+                    }
+                }
+            }
+
+            // ------------------------------------------------------------------------------------
+            // Get unUsedOutputColumnIds which are in pushdownPredUsedColumnIds
+            // but not in nonPushdownPredUsedColumnIds and outputColumnIds.
+            // ------------------------------------------------------------------------------------
+            Set<Integer> unUsedOutputColumnIds = pushdownPredUsedColumnIds.stream()
+                    .filter(cid -> !nonPushdownPredUsedColumnIds.contains(cid) && !outputColumnIds.contains(cid))
+                    .collect(Collectors.toSet());
+            scanNode.setUnUsedOutputStringColumns(unUsedOutputColumnIds);
+        }
+
+        private void setUnUsedOutputColumns(PhysicalExternalOlapScanOperator node, ExternalOlapScanNode scanNode,
                                             List<ScalarOperator> predicates, OlapTable referenceTable) {
             SessionVariable sessionVariable = ConnectContext.get().getSessionVariable();
             if (!sessionVariable.isEnableFilterUnusedColumnsInScanStage()) {
@@ -927,6 +1007,135 @@ public class PlanFragmentBuilder {
                 scanNode.computePointScanRangeLocations();
             }
             return fragment;
+        }
+
+
+        @Override
+        public PlanFragment visitPhysicalExternalOlapScan(OptExpression optExpression, ExecPlan context) {
+            PhysicalExternalOlapScanOperator node = (PhysicalExternalOlapScanOperator) optExpression.getOp();
+
+            ExternalOlapTable referenceTable = (ExternalOlapTable) node.getTable();
+            context.getDescTbl().addReferencedTable(referenceTable);
+            TupleDescriptor tupleDescriptor = context.getDescTbl().createTupleDescriptor();
+            tupleDescriptor.setTable(referenceTable);
+
+            // todo mark
+            ExternalOlapScanNode scanNode = new ExternalOlapScanNode(context.getNextNodeId(), tupleDescriptor, "ExternalOlapScanNode",
+                    context.getConnectContext().getCurrentWarehouseId());
+            scanNode.setLimit(node.getLimit());
+            scanNode.computeStatistics(optExpression.getStatistics());
+            scanNode.setScanOptimzeOption(node.getScanOptimzeOption());
+            scanNode.setIsSortedByKeyPerTablet(node.needSortedByKeyPerTablet());
+            scanNode.setIsOutputChunkByBucket(node.needOutputChunkByBucket());
+            scanNode.setWithoutColocateRequirement(node.isWithoutColocateRequirement());
+            scanNode.setGtid(node.getGtid());
+            currentExecGroup.add(scanNode);
+            // set tablet
+            try {
+                scanNode.updateScanInfo(node.getSelectedPartitionId(),
+                        node.getSelectedTabletId(),
+                        node.getHintsReplicaId(),
+                        node.getSelectedIndexId());
+                long selectedIndexId = node.getSelectedIndexId();
+                long totalTabletsNum = 0;
+                // Compatible with old tablet selected, copy from "OlapScanNode::computeTabletInfo"
+                // we can remove code when refactor tablet select
+                long localBeId = -1;
+                if (Config.enable_local_replica_selection) {
+                    localBeId = GlobalStateMgr.getCurrentState().getNodeMgr().getClusterInfo()
+                            .getBackendIdByHost(FrontendOptions.getLocalHostAddress());
+                }
+
+                List<Long> selectedNonEmptyPartitionIds = node.getSelectedPartitionId().stream().filter(p -> {
+                    List<Long> selectTabletIds = scanNode.getPartitionToScanTabletMap().get(p);
+                    return selectTabletIds != null && !selectTabletIds.isEmpty();
+                }).collect(Collectors.toList());
+                scanNode.setSelectedPartitionIds(selectedNonEmptyPartitionIds);
+
+                for (Long partitionId : scanNode.getSelectedPartitionIds()) {
+                    final Partition partition = referenceTable.getPartition(partitionId);
+                    for (PhysicalPartition physicalPartition : partition.getSubPartitions()) {
+                        Map<Long, Integer> tabletId2BucketSeq = Maps.newHashMap();
+                        List<Long> selectTabletIds = scanNode.getPartitionToScanTabletMap()
+                                .get(physicalPartition.getId());
+                        Preconditions.checkState(selectTabletIds != null && !selectTabletIds.isEmpty());
+                        final MaterializedIndex selectedTable = physicalPartition.getIndex(selectedIndexId);
+                        List<Long> allTabletIds = selectedTable.getTabletIdsInOrder();
+                        totalTabletsNum += selectedTable.getTablets().size();
+                        for (int i = 0; i < allTabletIds.size(); i++) {
+                            tabletId2BucketSeq.put(allTabletIds.get(i), i);
+                        }
+                        scanNode.setTabletId2BucketSeq(tabletId2BucketSeq);
+                        List<Tablet> tablets =
+                                selectTabletIds.stream().map(selectedTable::getTablet).collect(Collectors.toList());
+                        scanNode.addScanRangeLocations(partition, physicalPartition, selectedTable, tablets, localBeId);
+                    }
+                }
+                scanNode.setTotalTabletsNum(totalTabletsNum);
+            } catch (UserException e) {
+                throw new StarRocksPlannerException(
+                        "Build Exec ExternalOlapScanNode fail, scan info is invalid", INTERNAL_ERROR, e);
+            }
+
+            // set slot
+            for (Map.Entry<ColumnRefOperator, Column> entry : node.getColRefToColumnMetaMap().entrySet()) {
+                SlotDescriptor slotDescriptor =
+                        context.getDescTbl().addSlotDescriptor(tupleDescriptor, new SlotId(entry.getKey().getId()));
+                slotDescriptor.setColumn(entry.getValue());
+                slotDescriptor.setIsNullable(entry.getValue().isAllowNull());
+                slotDescriptor.setIsMaterialized(true);
+                if (slotDescriptor.getOriginType().isComplexType()) {
+                    slotDescriptor.setOriginType(entry.getKey().getType());
+                    slotDescriptor.setType(entry.getKey().getType());
+                }
+                context.getColRefToExpr().put(entry.getKey(), new SlotRef(entry.getKey().toString(), slotDescriptor));
+            }
+
+            // set column access path
+            scanNode.setColumnAccessPaths(computeAllColumnAccessPath(node, context));
+
+            // set predicate
+            List<ScalarOperator> predicates = Utils.extractConjuncts(node.getPredicate());
+            ScalarOperatorToExpr.FormatterContext formatterContext =
+                    new ScalarOperatorToExpr.FormatterContext(context.getColRefToExpr());
+
+            for (ScalarOperator predicate : predicates) {
+                scanNode.getConjuncts().add(ScalarOperatorToExpr.buildExecExpression(predicate, formatterContext));
+            }
+
+            for (ScalarOperator predicate : node.getPrunedPartitionPredicates()) {
+                scanNode.getPrunedPartitionPredicates()
+                        .add(ScalarOperatorToExpr.buildExecExpression(predicate, formatterContext));
+            }
+
+            tupleDescriptor.computeMemLayout();
+
+            // set unused output columns
+            // todo impl external
+            setUnUsedOutputColumns(node, scanNode, predicates, referenceTable);
+
+            // set isPreAggregation
+            scanNode.setIsPreAggregation(node.isPreAggregation(), node.getTurnOffReason());
+            // todo maybe can not get from remote meta
+            scanNode.updateAppliedDictStringColumns(node.getGlobalDicts().stream()
+                    .map(entry -> entry.first).collect(Collectors.toSet()));
+
+            scanNode.setUsePkIndex(node.isUsePkIndex());
+            context.getScanNodes().add(scanNode);
+            PlanFragment fragment =
+                    new PlanFragment(context.getNextFragmentId(), scanNode, DataPartition.RANDOM);
+            fragment.setQueryGlobalDicts(node.getGlobalDicts());
+            fragment.setQueryGlobalDictExprs(getGlobalDictsExprs(node.getGlobalDictsExpr(), context));
+            fragment.setShortCircuit(optExpression.getShortCircuit());
+            context.getFragments().add(fragment);
+
+            // set row store literal
+            if (optExpression.getShortCircuit()) {
+                scanNode.computePointScanRangeLocations();
+            }
+            return fragment;
+
+
         }
 
         @NotNull

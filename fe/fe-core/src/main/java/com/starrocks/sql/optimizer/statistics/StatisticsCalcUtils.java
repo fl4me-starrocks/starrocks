@@ -82,7 +82,7 @@ public class StatisticsCalcUtils {
     }
 
     public static long getTableRowCount(Table table, Operator node, OptimizerContext optimizerContext) {
-        if (table.isNativeTableOrMaterializedView()) {
+        if (table.isNativeTableOrMaterializedView()) { // todo may be need impl
             OlapTable olapTable = (OlapTable) table;
             Collection<Partition> selectedPartitions;
             if (node.getOpType() == OperatorType.LOGICAL_BINLOG_SCAN ||

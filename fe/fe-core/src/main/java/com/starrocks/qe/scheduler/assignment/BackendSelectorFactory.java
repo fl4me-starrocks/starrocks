@@ -15,6 +15,7 @@
 package com.starrocks.qe.scheduler.assignment;
 
 import com.starrocks.planner.DeltaLakeScanNode;
+import com.starrocks.planner.ExternalOlapScanNode;
 import com.starrocks.planner.FileTableScanNode;
 import com.starrocks.planner.HdfsScanNode;
 import com.starrocks.planner.HudiScanNode;
@@ -32,6 +33,7 @@ import com.starrocks.qe.FragmentScanRangeAssignment;
 import com.starrocks.qe.HDFSBackendSelector;
 import com.starrocks.qe.NoopBackendSelector;
 import com.starrocks.qe.NormalBackendSelector;
+import com.starrocks.qe.RemoteClusterBackendSelector;
 import com.starrocks.qe.ReplicatedBackendSelector;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.qe.scheduler.WorkerProvider;
@@ -69,6 +71,8 @@ public class BackendSelectorFactory {
             return new HDFSBackendSelector(scanNode, locations, assignment, workerProvider,
                     sessionVariable.getForceScheduleLocal(),
                     sessionVariable.getHDFSBackendSelectorScanRangeShuffle());
+        } else if(scanNode instanceof ExternalOlapScanNode) {
+            return new RemoteClusterBackendSelector(scanNode, locations, assignment, workerProvider, false);
         } else {
             boolean hasColocate = execFragment.isColocated();
             boolean hasBucket = execFragment.isLocalBucketShuffleJoin();

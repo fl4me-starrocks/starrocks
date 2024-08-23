@@ -316,10 +316,42 @@ public class LocalTablet extends Tablet implements GsonPostProcessable {
         }
     }
 
+    /*
+    we treat external tablet as LocalTablet
+     */
     @Override
     public void getQueryableReplicas(List<Replica> allQueryableReplicas, List<Replica> localReplicas,
                                      long visibleVersion, long localBeId, int schemaHash, long warehouseId) {
-        throw new SemanticException("not implemented");
+        // todo temp remove rwLock
+        for (Replica replica : replicas) {
+            if (replica.isBad()) {
+                continue;
+            }
+
+            // Skip the missing version replica
+            if (replica.getLastFailedVersion() > 0) {
+                continue;
+            }
+            ReplicaState state = replica.getState();
+            if (state.canQuery()) {
+                // replica.getSchemaHash() == -1 is for compatibility
+                // todo  external replica maybe can't get visible, we remove the check
+                //                if (replica.checkVersionCatchUp(visibleVersion, false)
+                //                        && replica.getMinReadableVersion() <= visibleVersion
+                //                        && (replica.getSchemaHash() == -1 || replica.getSchemaHash() == schemaHash)) {
+                //                    allQueryableReplicas.add(replica);
+                //                    if (localBeId != -1 && replica.getBackendId() == localBeId) {
+                //                        localReplicas.add(replica);
+                //                    }
+                //                }
+
+                allQueryableReplicas.add(replica);
+                if (localBeId != -1 && replica.getBackendId() == localBeId) {
+                    localReplicas.add(replica);
+                }
+
+            }
+        }
     }
 
     public int getQueryableReplicasSize(long visibleVersion, int schemaHash) {
@@ -593,7 +625,8 @@ public class LocalTablet extends Tablet implements GsonPostProcessable {
         try (CloseableLock ignored = CloseableLock.lock(this.rwLock.readLock())) {
             for (Replica replica : replicas) {
                 sb.append(String.format("%d:%d/%d/%d/%d:%s:%s,", replica.getBackendId(), replica.getVersion(),
-                        replica.getLastFailedVersion(), replica.getLastSuccessVersion(), replica.getMinReadableVersion(),
+                        replica.getLastFailedVersion(), replica.getLastSuccessVersion(),
+                        replica.getMinReadableVersion(),
                         replica.isBad() ? "BAD" : replica.getState(), getReplicaBackendState(replica.getBackendId())));
             }
         }
@@ -616,7 +649,8 @@ public class LocalTablet extends Tablet implements GsonPostProcessable {
                     finishState.normalReplicas.add(replicaId);
                     finishState.abnormalReplicasWithVersion.remove(replicaId);
                 } else {
-                    if (replica.getState() == ReplicaState.ALTER && replicaVersion <= Partition.PARTITION_INIT_VERSION) {
+                    if (replica.getState() == ReplicaState.ALTER &&
+                            replicaVersion <= Partition.PARTITION_INIT_VERSION) {
                         valid++;
                     }
                     finishState.normalReplicas.remove(replicaId);
@@ -634,12 +668,14 @@ public class LocalTablet extends Tablet implements GsonPostProcessable {
                 long replicaVersion = replica.getVersion();
                 if (replicaVersion < version) {
                     if (empty) {
-                        sb.append(String.format(" {tablet:%d quorum:%d version:%d #replica:%d err:", id, quorum, version,
-                                replicas.size()));
+                        sb.append(
+                                String.format(" {tablet:%d quorum:%d version:%d #replica:%d err:", id, quorum, version,
+                                        replicas.size()));
                         empty = false;
                     }
                     Backend backend =
-                            GlobalStateMgr.getCurrentState().getNodeMgr().getClusterInfo().getBackend(replica.getBackendId());
+                            GlobalStateMgr.getCurrentState().getNodeMgr().getClusterInfo()
+                                    .getBackend(replica.getBackendId());
                     sb.append(String.format(" %s:%d%s",
                             backend == null ? Long.toString(replica.getBackendId()) : backend.getHost(), replicaVersion,
                             replica.getState() == ReplicaState.ALTER ? "ALTER" : ""));

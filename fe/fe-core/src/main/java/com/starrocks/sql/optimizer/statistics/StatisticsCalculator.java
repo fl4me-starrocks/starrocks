@@ -70,6 +70,7 @@ import com.starrocks.sql.optimizer.operator.logical.LogicalCTEProduceOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalDeltaLakeScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalEsScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalExceptOperator;
+import com.starrocks.sql.optimizer.operator.logical.LogicalExternalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalFileScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalFilterOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalHiveScanOperator;
@@ -105,6 +106,7 @@ import com.starrocks.sql.optimizer.operator.physical.PhysicalCTEProduceOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalDeltaLakeScanOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalEsScanOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalExceptOperator;
+import com.starrocks.sql.optimizer.operator.physical.PhysicalExternalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalFileScanOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalFilterOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalHashAggregateOperator;
@@ -296,6 +298,18 @@ public class StatisticsCalculator extends OperatorVisitor<Void, ExpressionContex
 
     @Override
     public Void visitPhysicalOlapScan(PhysicalOlapScanOperator node, ExpressionContext context) {
+        return computeOlapScanNode(node, context, node.getTable(), node.getSelectedPartitionId(),
+                node.getColRefToColumnMetaMap());
+    }
+
+    @Override
+    public Void visitLogicalExternalOlapScan(LogicalExternalOlapScanOperator node, ExpressionContext context) {
+        return computeOlapScanNode(node, context, node.getTable(), node.getSelectedPartitionId(),
+                node.getColRefToColumnMetaMap());
+    }
+
+    @Override
+    public Void visitPhysicalExternalOlapScan(PhysicalExternalOlapScanOperator node, ExpressionContext context) {
         return computeOlapScanNode(node, context, node.getTable(), node.getSelectedPartitionId(),
                 node.getColRefToColumnMetaMap());
     }

@@ -18,7 +18,9 @@ import com.google.common.collect.Sets;
 import com.starrocks.common.Config;
 import com.starrocks.common.UserException;
 import com.starrocks.common.util.ListUtil;
+import com.starrocks.planner.ExternalOlapScanNode;
 import com.starrocks.planner.PlanFragment;
+import com.starrocks.planner.PlanNodeId;
 import com.starrocks.planner.ScanNode;
 import com.starrocks.qe.BackendSelector;
 import com.starrocks.qe.ColocatedBackendSelector;
@@ -234,6 +236,18 @@ public class LocalFragmentAssignmentStrategy implements FragmentAssignmentStrate
         });
     }
 
+    private ComputeNode getComputeNode(Integer scanNodeId, ExecutionFragment executionFragment, Long currentWorkId) {
+        ScanNode scanNode = executionFragment.getScanNode(new PlanNodeId(scanNodeId));
+        if (scanNode instanceof ExternalOlapScanNode) {
+            ExternalOlapScanNode externalOlapScanNode = (ExternalOlapScanNode) scanNode;
+            return externalOlapScanNode.getExternalOlapTable().getExternalSystemInfoService().getBackend(currentWorkId);
+        } else {
+            return workerProvider.getWorkerById(currentWorkId);
+        }
+
+    }
+
+
     private void assignScanRangesToNormalFragmentInstancePerWorker(ExecutionFragment execFragment) {
         final PlanFragment fragment = execFragment.getPlanFragment();
         final int parallelExecInstanceNum = fragment.getParallelExecNum();
@@ -252,7 +266,7 @@ public class LocalFragmentAssignmentStrategy implements FragmentAssignmentStrate
 
                 for (List<TScanRangeParams> scanRanges : scanRangesPerInstance) {
                     FragmentInstance instance =
-                            new FragmentInstance(workerProvider.getWorkerById(workerId), execFragment);
+                            new FragmentInstance(getComputeNode(scanId, execFragment, workerId), execFragment);
                     execFragment.addInstance(instance);
 
                     if (!enableAssignScanRangesPerDriverSeq(fragment, scanRanges)) {

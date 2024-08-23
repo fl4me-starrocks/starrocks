@@ -122,6 +122,10 @@ public abstract class OptExpressionVisitor<R, C> {
         return visitPhysicalScan(optExpression, context);
     }
 
+    public R visitPhysicalExternalOlapScan(OptExpression optExpression, C context) {
+        return visit(optExpression, context);
+    }
+
     public R visitPhysicalHiveScan(OptExpression optExpression, C context) {
         return visitPhysicalScan(optExpression, context);
     }

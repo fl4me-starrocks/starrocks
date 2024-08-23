@@ -33,6 +33,7 @@ import com.starrocks.catalog.Column;
 import com.starrocks.catalog.DistributionInfo;
 import com.starrocks.catalog.DistributionInfo.DistributionInfoType;
 import com.starrocks.catalog.EsTable;
+import com.starrocks.catalog.ExternalOlapTable;
 import com.starrocks.catalog.HashDistributionInfo;
 import com.starrocks.catalog.IcebergTable;
 import com.starrocks.catalog.OlapTable;
@@ -103,6 +104,7 @@ import com.starrocks.sql.optimizer.operator.logical.LogicalCTEProduceOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalDeltaLakeScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalEsScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalExceptOperator;
+import com.starrocks.sql.optimizer.operator.logical.LogicalExternalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalFileScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalHiveScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalHudiScanOperator;
@@ -579,6 +581,24 @@ public class RelationTransformer implements AstVisitor<LogicalPlan, ExpressionMa
                         columnMetaToColRefMap,
                         Operator.DEFAULT_LIMIT);
             }
+        } else if (Table.TableType.OLAP_EXTERNAL.equals(node.getTable().getType())) {
+            DistributionSpec distributionSpec = getTableDistributionSpec(node, columnMetaToColRefMap);
+            ExternalOlapTable tbl = MetaUtils.syncOLAPExternalTableMeta((ExternalOlapTable) node.getTable());
+            node.setTable(tbl);
+            scanOperator = LogicalExternalOlapScanOperator.builder()
+                    .setTable(node.getTable())
+                    .setColRefToColumnMetaMap(colRefToColumnMetaMapBuilder.build())
+                    .setColumnMetaToColRefMap(columnMetaToColRefMap)
+                    .setDistributionSpec(distributionSpec)
+                    .setSelectedIndexId(((OlapTable) node.getTable()).getBaseIndexId())
+                    .setGtid(node.getGtid())
+                    .setPartitionNames(node.getPartitionNames())
+                    .setSelectedTabletId(Lists.newArrayList())
+                    .setHintsTabletIds(node.getTabletIds())
+                    .setHintsReplicaIds(node.getReplicaIds())
+                    .setHasTableHints(node.hasTableHints())
+                    .setUsePkIndex(node.isUsePkIndex())
+                    .build();
         } else if (Table.TableType.HIVE.equals(node.getTable().getType())) {
             scanOperator = new LogicalHiveScanOperator(node.getTable(), colRefToColumnMetaMapBuilder.build(),
                     columnMetaToColRefMap, Operator.DEFAULT_LIMIT, partitionPredicate);
